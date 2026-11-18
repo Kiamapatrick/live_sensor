@@ -49,7 +49,7 @@
         app:layout_constraintStart_toStartOf="parent" />
 
     <!-- Simulated Switch -->
-    <Switch
+    <androidx.appcompat.widget.SwitchCompat
         android:id="@+id/switchSimulated"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

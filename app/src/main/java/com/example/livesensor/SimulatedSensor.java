@@ -52,8 +52,8 @@ public class SimulatedSensor {
                 android.hardware.SensorManager.SENSOR_STATUS_ACCURACY_HIGH :
                 android.hardware.SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM;
 
-        baseTimestamp += 200_000_000L; // 200ms in nanoseconds
-        callback.onSensorChanged(value, baseTimestamp, accuracy);
+        // Real elapsed time (Handler jitter included), not a faked constant 200 ms
+        callback.onSensorChanged(value, System.nanoTime(), accuracy);
     }
 
     public void start() {

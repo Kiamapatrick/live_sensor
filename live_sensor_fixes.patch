@@ -1,0 +1,234 @@
+diff --git a/app/src/main/java/com/example/livesensor/MainActivity.java b/app/src/main/java/com/example/livesensor/MainActivity.java
+index e95d763..6cccaf6 100644
+--- a/app/src/main/java/com/example/livesensor/MainActivity.java
++++ b/app/src/main/java/com/example/livesensor/MainActivity.java
+@@ -57,6 +57,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
+     // State
+     private boolean listenerRegistered = false; // Guard against duplicate registration
+     private boolean isSimulatedMode = false;
++    private boolean hasReading = false;       // true once a real/simulated event has arrived
++    private float lastRaw = 0f;
++    private float lastSmoothed = 0f;
++    private int lastAccuracy = SensorManager.SENSOR_STATUS_ACCURACY_HIGH;
+     private int currentConditionIndex = 1; // Default: Room light
+     private static final String[] CONDITIONS = {"Covered", "Room light", "Bright light"};
+ 
+@@ -162,8 +166,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
+             tvSourceLabel.setTextColor(0xFFFF9800); // Orange
+             switchSimulated.setEnabled(true);
+             switchSimulated.setChecked(true);
+-            setSimulatedMode(true);
+-            findViewById(R.id.btnRecord).setEnabled(false); // Will be enabled in simulated mode
++            setSimulatedMode(true); // enables Record button (simulated data is allowed, labelled)
+         } else {
+             // Light sensor available
+             viewModel.setSensorAvailable(true);
+@@ -186,9 +189,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
+ 
+     private void restoreStateFromViewModel() {
+         // Restore simulated mode
+-        isSimulatedMode = viewModel.getSimulatedMode().getValue() != null
+-                && viewModel.getSimulatedMode().getValue();
+-        switchSimulated.setChecked(isSimulatedMode);
++        boolean savedSimulated = Boolean.TRUE.equals(viewModel.getSimulatedMode().getValue());
++        if (savedSimulated != isSimulatedMode) {
++            switchSimulated.setChecked(savedSimulated); // listener -> setSimulatedMode updates label + button
++        }
+ 
+         // Restore selected condition
+         Integer savedCondition = viewModel.getSelectedConditionIndex().getValue();
+@@ -273,6 +277,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
+             return;
+         }
+ 
++        // Start a fresh timing window: the time spent in the background must not be
++        // counted as an "interval between events".
++        sensorData.resetTiming();
++
+         if (!isSimulatedMode && lightSensor != null) {
+             // Register for light sensor with NORMAL delay
+             // Note: requested delay is a HINT, not a guaranteed rate
+@@ -286,7 +294,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
+                 updateCounterDisplay();
+             } else {
+                 Log.e(TAG, "Failed to register listener for light sensor");
+-                Toast.makeText(this, "Failed to register sensor listener", Toast.LENGTH_SHORT).show();
++                Toast.makeText(this, R.string.failed_register_listener, Toast.LENGTH_SHORT).show();
+             }
+         } else if (isSimulatedMode) {
+             // In simulated mode, start the simulated sensor
+@@ -350,6 +358,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
+ 
+         isSimulatedMode = simulated;
+         viewModel.setSimulatedMode(simulated);
++        sensorData.resetAll();   // never mix simulated and measured values in one EMA
++        hasReading = false;
+ 
+         if (simulated) {
+             tvSourceLabel.setText(R.string.source_simulated);
+@@ -391,6 +401,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
+ 
+         // Update UI on main thread
+         runOnUiThread(() -> {
++            hasReading = true;
++            lastRaw = value;
++            lastSmoothed = smoothed;
++            lastAccuracy = accuracy;
+             tvRawValue.setText(getString(R.string.raw_value_format, value));
+             tvSmoothedValue.setText(getString(R.string.smoothed_value_format, EMA_ALPHA, smoothed));
+ 
+@@ -409,9 +423,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
+             } else {
+                 tvTiming.setText(R.string.timing_initial);
+             }
+-
+-            // Store current values for recording
+-            // We'll use the latest values when record button is pressed
+         });
+     }
+ 
+@@ -433,50 +444,21 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
+     }
+ 
+     private void recordObservation() {
+-        // Get current values from UI (they're updated on sensor events)
+-        // We need to track the latest values - let's store them in member variables
+-        // For now, we'll read from the TextViews (not ideal but works)
+-        String rawText = tvRawValue.getText().toString();
+-        String smoothedText = tvSmoothedValue.getText().toString();
+-        String accuracyText = tvAccuracy.getText().toString();
+-
+-        // Parse values (simple parsing)
+-        float rawValue = parseFloatFromText(rawText, "Raw: ");
+-        float smoothedValue = parseFloatFromText(smoothedText, "Smoothed (EMA α=0.2): ");
+-        int accuracy = parseAccuracyFromText(accuracyText);
+-
++        if (!hasReading) {
++            Toast.makeText(this, R.string.no_reading_yet, Toast.LENGTH_SHORT).show();
++            return;
++        }
+         String timestamp = timeFormat.format(new Date());
+         String condition = CONDITIONS[currentConditionIndex];
+         String source = isSimulatedMode ? "Simulated" : "Measured";
+ 
+-        Observation obs = new Observation(timestamp, condition, rawValue, smoothedValue, accuracy, source);
++        Observation obs = new Observation(timestamp, condition, lastRaw, lastSmoothed, lastAccuracy, source);
+         observationAdapter.addObservation(obs);
+         viewModel.addObservation(obs);
+ 
+         Toast.makeText(this, getString(R.string.observation_recorded, condition), Toast.LENGTH_SHORT).show();
+     }
+ 
+-    private float parseFloatFromText(String text, String prefix) {
+-        try {
+-            String value = text.replace(prefix, "").replace(" lux", "").trim();
+-            return Float.parseFloat(value);
+-        } catch (Exception e) {
+-            return 0f;
+-        }
+-    }
+-
+-    private int parseAccuracyFromText(String text) {
+-        String accuracyStr = text.replace("Accuracy: ", "").trim();
+-        switch (accuracyStr) {
+-            case "HIGH": return SensorManager.SENSOR_STATUS_ACCURACY_HIGH;
+-            case "MEDIUM": return SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM;
+-            case "LOW": return SensorManager.SENSOR_STATUS_ACCURACY_LOW;
+-            case "UNRELIABLE": return SensorManager.SENSOR_STATUS_UNRELIABLE;
+-            case "NO_CONTACT": return SensorManager.SENSOR_STATUS_NO_CONTACT;
+-            default: return SensorManager.SENSOR_STATUS_ACCURACY_HIGH;
+-        }
+-    }
+-
+     private void updateListenerStateDisplay(boolean registered) {
+         tvListenerState.setText(registered ? R.string.listener_registered : R.string.listener_unregistered);
+         tvListenerState.setTextColor(registered ? 0xFF2E7D32 : 0xFFC62828);
+@@ -504,9 +486,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
+             long timestamp = event.timestamp; // nanoseconds
+             int accuracy = event.accuracy;
+             handleSensorEvent(lux, timestamp, accuracy, false);
+-        } else if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+-            // Accelerometer event (optional second sensor)
+-            // Not used as primary, but could be added if needed
+         }
+     }
+ 
+diff --git a/app/src/main/java/com/example/livesensor/SensorData.java b/app/src/main/java/com/example/livesensor/SensorData.java
+index bbc9965..b9e463f 100644
+--- a/app/src/main/java/com/example/livesensor/SensorData.java
++++ b/app/src/main/java/com/example/livesensor/SensorData.java
+@@ -12,7 +12,7 @@ public class SensorData {
+ 
+     private float smoothedValue = Float.NaN;
+     private long lastEventTimestampNanos = 0;
+-    private long sumIntervalsMs = 0;
++    private double sumIntervalsMs = 0;
+     private int intervalCount = 0;
+ 
+     /**
+@@ -59,7 +59,7 @@ public class SensorData {
+     public float recordEventTimestamp(long eventTimestampNanos) {
+         if (lastEventTimestampNanos != 0) {
+             long intervalNanos = eventTimestampNanos - lastEventTimestampNanos;
+-            float intervalMs = intervalNanos / 1_000_000.0f;
++            double intervalMs = intervalNanos / 1_000_000.0;
+             sumIntervalsMs += intervalMs;
+             intervalCount++;
+         }
+@@ -68,7 +68,7 @@ public class SensorData {
+         if (intervalCount == 0) {
+             return -1f;
+         }
+-        return sumIntervalsMs / intervalCount;
++        return (float) (sumIntervalsMs / intervalCount);
+     }
+ 
+     /**
+@@ -80,7 +80,7 @@ public class SensorData {
+         if (intervalCount == 0) {
+             return -1f;
+         }
+-        return sumIntervalsMs / intervalCount;
++        return (float) (sumIntervalsMs / intervalCount);
+     }
+ 
+     /**
+diff --git a/app/src/main/java/com/example/livesensor/SimulatedSensor.java b/app/src/main/java/com/example/livesensor/SimulatedSensor.java
+index adac1df..d4b08af 100644
+--- a/app/src/main/java/com/example/livesensor/SimulatedSensor.java
++++ b/app/src/main/java/com/example/livesensor/SimulatedSensor.java
+@@ -52,8 +52,8 @@ public class SimulatedSensor {
+                 android.hardware.SensorManager.SENSOR_STATUS_ACCURACY_HIGH :
+                 android.hardware.SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM;
+ 
+-        baseTimestamp += 200_000_000L; // 200ms in nanoseconds
+-        callback.onSensorChanged(value, baseTimestamp, accuracy);
++        // Real elapsed time (Handler jitter included), not a faked constant 200 ms
++        callback.onSensorChanged(value, System.nanoTime(), accuracy);
+     }
+ 
+     public void start() {
+diff --git a/app/src/main/res/layout/activity_main.xml b/app/src/main/res/layout/activity_main.xml
+index aa0a70e..e044709 100644
+--- a/app/src/main/res/layout/activity_main.xml
++++ b/app/src/main/res/layout/activity_main.xml
+@@ -49,7 +49,7 @@
+         app:layout_constraintStart_toStartOf="parent" />
+ 
+     <!-- Simulated Switch -->
+-    <Switch
++    <androidx.appcompat.widget.SwitchCompat
+         android:id="@+id/switchSimulated"
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strings.xml
+index afdf7f8..8cb77ce 100644
+--- a/app/src/main/res/values/strings.xml
++++ b/app/src/main/res/values/strings.xml
+@@ -53,4 +53,5 @@
+     <!-- Toast Messages -->
+     <string name="observation_recorded">Observation recorded: %s</string>
+     <string name="failed_register_listener">Failed to register sensor listener</string>
++    <string name="no_reading_yet">No reading yet - wait for a sensor event first</string>
+ </resources>
+\ No newline at end of file

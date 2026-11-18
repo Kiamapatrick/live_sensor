@@ -53,4 +53,5 @@
     <!-- Toast Messages -->
     <string name="observation_recorded">Observation recorded: %s</string>
     <string name="failed_register_listener">Failed to register sensor listener</string>
+    <string name="no_reading_yet">No reading yet - wait for a sensor event first</string>
 </resources>

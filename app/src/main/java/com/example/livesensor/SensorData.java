@@ -12,7 +12,7 @@ public class SensorData {
 
     private float smoothedValue = Float.NaN;
     private long lastEventTimestampNanos = 0;
-    private long sumIntervalsMs = 0;
+    private double sumIntervalsMs = 0;
     private int intervalCount = 0;
 
     /**
@@ -59,7 +59,7 @@ public class SensorData {
     public float recordEventTimestamp(long eventTimestampNanos) {
         if (lastEventTimestampNanos != 0) {
             long intervalNanos = eventTimestampNanos - lastEventTimestampNanos;
-            float intervalMs = intervalNanos / 1_000_000.0f;
+            double intervalMs = intervalNanos / 1_000_000.0;
             sumIntervalsMs += intervalMs;
             intervalCount++;
         }
@@ -68,7 +68,7 @@ public class SensorData {
         if (intervalCount == 0) {
             return -1f;
         }
-        return sumIntervalsMs / intervalCount;
+        return (float) (sumIntervalsMs / intervalCount);
     }
 
     /**
@@ -80,7 +80,7 @@ public class SensorData {
         if (intervalCount == 0) {
             return -1f;
         }
-        return sumIntervalsMs / intervalCount;
+        return (float) (sumIntervalsMs / intervalCount);
     }
 
     /**
