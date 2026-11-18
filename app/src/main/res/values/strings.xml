@@ -1,3 +1,56 @@
 <resources>
     <string name="app_name">Live Sensor</string>
+
+    <!-- Experiment Question -->
+    <string name="experiment_question">Does the light sensor\'s reading change measurably between covered, normal room light and torch/bright light?</string>
+
+    <!-- Sensor Identity -->
+    <string name="sensor_not_initialized">Sensor: Not initialized</string>
+    <string name="sensor_not_available">Sensor: Light sensor NOT AVAILABLE on this device</string>
+    <string name="sensor_identity_format">Sensor: %1$s | Vendor: %2$s | Type: %3$d (TYPE_LIGHT) | Max Range: %4$.1f lux | Resolution: %5$.4f lux | Power: %6$.2f mA</string>
+
+    <!-- Source Labels -->
+    <string name="source_measured">MEASURED (hardware)</string>
+    <string name="source_simulated">SIMULATED</string>
+
+    <!-- Simulated Switch -->
+    <string name="use_simulated_data">Use simulated data</string>
+
+    <!-- Live Panel -->
+    <string name="raw_value_format">Raw: %.2f lux</string>
+    <string name="smoothed_value_format">Smoothed (EMA α=%1$.1f): %2$.2f lux</string>
+    <string name="accuracy_format">Accuracy: %s</string>
+    <string name="timing_format">Avg interval: %1$.1f ms | Rate: %2$.1f Hz | Requested: SENSOR_DELAY_NORMAL (hint, not guaranteed)</string>
+    <string name="timing_initial">Avg interval: -- ms | Rate: -- Hz | Requested: SENSOR_DELAY_NORMAL (hint, not guaranteed)</string>
+
+    <!-- Smoothing Rule -->
+    <string name="smoothing_rule">Smoothing: EMA — smoothed = α × raw + (1−α) × previous, α = 0.2</string>
+
+    <!-- Conditions -->
+    <string name="condition_covered">Covered</string>
+    <string name="condition_room_light">Room light</string>
+    <string name="condition_bright_light">Bright light</string>
+
+    <!-- Record Button -->
+    <string name="record_observation">Record observation</string>
+
+    <!-- Listener State -->
+    <string name="listener_registered">Listener: Registered</string>
+    <string name="listener_unregistered">Listener: Unregistered</string>
+    <string name="register_counter_format">Register calls: %1$d | Unregister calls: %2$d</string>
+
+    <!-- Uncalibrated Note -->
+    <string name="uncalibrated_note">Readings are uncalibrated device values, not instrument-grade measurements.</string>
+
+    <!-- Accuracy Labels -->
+    <string name="accuracy_high">HIGH</string>
+    <string name="accuracy_medium">MEDIUM</string>
+    <string name="accuracy_low">LOW</string>
+    <string name="accuracy_unreliable">UNRELIABLE</string>
+    <string name="accuracy_no_contact">NO_CONTACT</string>
+    <string name="accuracy_unknown">UNKNOWN(%1$d)</string>
+
+    <!-- Toast Messages -->
+    <string name="observation_recorded">Observation recorded: %s</string>
+    <string name="failed_register_listener">Failed to register sensor listener</string>
 </resources>

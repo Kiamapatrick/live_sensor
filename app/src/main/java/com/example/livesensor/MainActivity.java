@@ -10,7 +10,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
-import android.widget.Switch;
+import androidx.appcompat.widget.SwitchCompat;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -35,7 +35,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     // UI Components
     private TextView tvSensorIdentity;
     private TextView tvSourceLabel;
-    private Switch switchSimulated;
+    private SwitchCompat switchSimulated;
     private TextView tvRawValue;
     private TextView tvSmoothedValue;
     private TextView tvAccuracy;
@@ -48,7 +48,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     // Sensor components
     private SensorManager sensorManager;
     private Sensor lightSensor;
-    private Sensor accelerometerSensor;
     private SensorData sensorData;
     private SimulatedSensor simulatedSensor;
 
@@ -90,7 +89,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         // Initialize SensorManager and sensors
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
-        accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
         // Check sensor availability
         checkSensorAvailability();
@@ -151,20 +149,16 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     private void initSimulatedSensor() {
-        simulatedSensor = new SimulatedSensor(new SimulatedSensor.Callback() {
-            @Override
-            public void onSensorChanged(float luxValue, long timestampNanos, int accuracy) {
-                handleSensorEvent(luxValue, timestampNanos, accuracy, true);
-            }
-        });
+        simulatedSensor = new SimulatedSensor((luxValue, timestampNanos, accuracy) ->
+                handleSensorEvent(luxValue, timestampNanos, accuracy, true));
     }
 
     private void checkSensorAvailability() {
         if (lightSensor == null) {
             // No light sensor available
             viewModel.setSensorAvailable(false);
-            tvSensorIdentity.setText("Sensor: Light sensor NOT AVAILABLE on this device");
-            tvSourceLabel.setText("SIMULATED");
+            tvSensorIdentity.setText(R.string.sensor_not_available);
+            tvSourceLabel.setText(R.string.source_simulated);
             tvSourceLabel.setTextColor(0xFFFF9800); // Orange
             switchSimulated.setEnabled(true);
             switchSimulated.setChecked(true);
@@ -173,8 +167,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         } else {
             // Light sensor available
             viewModel.setSensorAvailable(true);
-            String identity = String.format(Locale.getDefault(),
-                    "Sensor: %s | Vendor: %s | Type: %d (TYPE_LIGHT) | Max Range: %.1f lux | Resolution: %.4f lux | Power: %.2f mA",
+            String identity = getString(R.string.sensor_identity_format,
                     lightSensor.getName(),
                     lightSensor.getVendor(),
                     lightSensor.getType(),
@@ -182,7 +175,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     lightSensor.getResolution(),
                     lightSensor.getPower());
             tvSensorIdentity.setText(identity);
-            tvSourceLabel.setText("MEASURED (hardware)");
+            tvSourceLabel.setText(R.string.source_measured);
             tvSourceLabel.setTextColor(0xFF2E7D32); // Green
             switchSimulated.setEnabled(true);
             switchSimulated.setChecked(false);
@@ -359,11 +352,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         viewModel.setSimulatedMode(simulated);
 
         if (simulated) {
-            tvSourceLabel.setText("SIMULATED");
+            tvSourceLabel.setText(R.string.source_simulated);
             tvSourceLabel.setTextColor(0xFFFF9800); // Orange
             findViewById(R.id.btnRecord).setEnabled(true);
         } else {
-            tvSourceLabel.setText("MEASURED (hardware)");
+            tvSourceLabel.setText(R.string.source_measured);
             tvSourceLabel.setTextColor(0xFF2E7D32); // Green
             // Enable record button only if real sensor is available
             findViewById(R.id.btnRecord).setEnabled(lightSensor != null);
@@ -398,12 +391,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         // Update UI on main thread
         runOnUiThread(() -> {
-            String sourceLabel = simulated ? "SIMULATED" : "MEASURED (hardware)";
-            tvRawValue.setText(String.format(Locale.getDefault(), "Raw: %.2f lux", value));
-            tvSmoothedValue.setText(String.format(Locale.getDefault(), "Smoothed (EMA α=%.1f): %.2f lux", EMA_ALPHA, smoothed));
+            tvRawValue.setText(getString(R.string.raw_value_format, value));
+            tvSmoothedValue.setText(getString(R.string.smoothed_value_format, EMA_ALPHA, smoothed));
 
             String accuracyLabel = getAccuracyLabel(accuracy);
-            tvAccuracy.setText("Accuracy: " + accuracyLabel);
+            tvAccuracy.setText(getString(R.string.accuracy_format, accuracyLabel));
             if (accuracy == SensorManager.SENSOR_STATUS_UNRELIABLE
                     || accuracy == SensorManager.SENSOR_STATUS_NO_CONTACT) {
                 tvAccuracy.setTextColor(0xFFC62828); // Red
@@ -413,11 +405,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
             // Timing display
             if (avgInterval > 0) {
-                tvTiming.setText(String.format(Locale.getDefault(),
-                        "Avg interval: %.1f ms | Rate: %.1f Hz | Requested: SENSOR_DELAY_NORMAL (hint, not guaranteed)",
-                        avgInterval, eventRate));
+                tvTiming.setText(getString(R.string.timing_format, avgInterval, eventRate));
             } else {
-                tvTiming.setText("Avg interval: -- ms | Rate: -- Hz | Requested: SENSOR_DELAY_NORMAL (hint, not guaranteed)");
+                tvTiming.setText(R.string.timing_initial);
             }
 
             // Store current values for recording
@@ -428,17 +418,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private String getAccuracyLabel(int accuracy) {
         switch (accuracy) {
             case SensorManager.SENSOR_STATUS_ACCURACY_HIGH:
-                return "HIGH";
+                return getString(R.string.accuracy_high);
             case SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM:
-                return "MEDIUM";
+                return getString(R.string.accuracy_medium);
             case SensorManager.SENSOR_STATUS_ACCURACY_LOW:
-                return "LOW";
+                return getString(R.string.accuracy_low);
             case SensorManager.SENSOR_STATUS_UNRELIABLE:
-                return "UNRELIABLE";
+                return getString(R.string.accuracy_unreliable);
             case SensorManager.SENSOR_STATUS_NO_CONTACT:
-                return "NO_CONTACT";
+                return getString(R.string.accuracy_no_contact);
             default:
-                return "UNKNOWN(" + accuracy + ")";
+                return getString(R.string.accuracy_unknown, accuracy);
         }
     }
 
@@ -451,8 +441,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         String accuracyText = tvAccuracy.getText().toString();
 
         // Parse values (simple parsing)
-        float rawValue = parseFloatFromText(rawText, "Raw: ", " lux");
-        float smoothedValue = parseFloatFromText(smoothedText, "Smoothed (EMA α=0.2): ", " lux");
+        float rawValue = parseFloatFromText(rawText, "Raw: ");
+        float smoothedValue = parseFloatFromText(smoothedText, "Smoothed (EMA α=0.2): ");
         int accuracy = parseAccuracyFromText(accuracyText);
 
         String timestamp = timeFormat.format(new Date());
@@ -463,12 +453,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         observationAdapter.addObservation(obs);
         viewModel.addObservation(obs);
 
-        Toast.makeText(this, "Observation recorded: " + condition, Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, getString(R.string.observation_recorded, condition), Toast.LENGTH_SHORT).show();
     }
 
-    private float parseFloatFromText(String text, String prefix, String suffix) {
+    private float parseFloatFromText(String text, String prefix) {
         try {
-            String value = text.replace(prefix, "").replace(suffix, "").trim();
+            String value = text.replace(prefix, "").replace(" lux", "").trim();
             return Float.parseFloat(value);
         } catch (Exception e) {
             return 0f;
@@ -488,7 +478,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     private void updateListenerStateDisplay(boolean registered) {
-        tvListenerState.setText("Listener: " + (registered ? "Registered" : "Unregistered"));
+        tvListenerState.setText(registered ? R.string.listener_registered : R.string.listener_unregistered);
         tvListenerState.setTextColor(registered ? 0xFF2E7D32 : 0xFFC62828);
     }
 
@@ -501,8 +491,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     private void updateCounterDisplay(int reg, int unreg) {
-        tvRegisterCounter.setText(String.format(Locale.getDefault(),
-                "Register calls: %d | Unregister calls: %d", reg, unreg));
+        tvRegisterCounter.setText(getString(R.string.register_counter_format, reg, unreg));
     }
 
     // ==================== SensorEventListener Implementation ====================
